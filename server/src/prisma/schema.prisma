@@ -1,0 +1,101 @@
+datasource db {
+  provider = "postgresql"  
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum TokenType {
+   ACCESS
+  REFRESH
+  RESET_PASSWORD
+  VERIFY_EMAIL
+}
+
+
+model User {
+  id              Int        @id @default(autoincrement())
+  name            String?
+  email           String?    @unique
+  phone           String?    @unique  
+  phoneVerified   Boolean    @default(false)
+  password        String?
+  role            String?     @default("user")
+  googleId        String?    @unique  
+  isEmailVerified Boolean    @default(false)
+  verificationCode String?   
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  bookings        Booking[]
+  tokens          Token[]    
+}
+
+
+
+model Ground {
+  id              Int        @id @default(autoincrement())
+  groundName      String
+  location        String
+  description     String?
+  type            String    
+  availability    Boolean    @default(true)
+  media           String?   
+  rating          Float?   
+  totalPeopleRated Int       @default(0)
+  bookings        Booking[]
+  slots           Slot[]
+}
+
+model Slot {
+  id        Int      @id @default(autoincrement())
+  groundId  Int
+  timeRange String   // e.g., "6am-9am"
+  price     Float
+  ground    Ground   @relation(fields: [groundId], references: [id])
+  bookings  Booking[]
+}
+
+model Booking {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  groundId   Int
+  slotId     Int
+  date       DateTime
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+  payment    Payment?
+
+  user       User     @relation(fields: [userId], references: [id])
+  ground     Ground   @relation(fields: [groundId], references: [id])
+  slot       Slot     @relation(fields: [slotId], references: [id])
+}
+
+model Payment {
+  id            Int      @id @default(autoincrement())
+  bookingId     Int      @unique
+  amount        Float
+  status        String   
+  transactionId String?
+  createdAt     DateTime @default(now())
+
+  booking       Booking  @relation(fields: [bookingId], references: [id])
+}
+
+
+model Token {
+  id         Int        @id @default(autoincrement())
+  token      String    
+  userId     Int       
+  type       TokenType  // The type of token (REFRESH, RESET_PASSWORD, VERIFY_EMAIL)
+  expires    DateTime  
+  blacklisted Boolean   @default(false) // If the token is blacklisted
+  role       String?    
+
+  createdAt  DateTime   @default(now())  
+  updatedAt  DateTime   @updatedAt       
+
+  user       User       @relation(fields: [userId], references: [id]) 
+}
+
