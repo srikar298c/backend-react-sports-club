@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const validate_1 = require("../middlewares/validate");
+const validations_1 = require("../validations");
+const controllers_1 = require("../controllers");
+const router = (0, express_1.Router)();
+router.post('/create', (0, validate_1.validateRequest)(validations_1.groundValidation.createGroundSchema), controllers_1.groundController.createGround);
+router.post('/add-slots', (0, validate_1.validateRequest)(validations_1.groundValidation.addSlotsSchema), controllers_1.groundController.addSlotsToGround);
+router.put('/:groundId', (0, validate_1.validateRequest)(validations_1.groundValidation.updateGroundSchema), controllers_1.groundController.updateGround);
+router.delete('/:groundId', (0, validate_1.validateRequest)(validations_1.groundValidation.deleteGroundSchema), controllers_1.groundController.deleteGround);
+exports.default = router;

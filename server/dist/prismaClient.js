@@ -2,7 +2,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.paginate = void 0;
 const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const config_1 = require("./config/config");
+const prisma = new client_1.PrismaClient({
+    datasources: {
+        db: {
+            url: config_1.config.prisma.databaseUrl,
+        },
+    },
+});
 const paginate = async (model, filter = {}, options = {}) => {
     const { page = 1, limit = 10, sortBy = 'createdAt:asc' } = options;
     // Parse sorting options

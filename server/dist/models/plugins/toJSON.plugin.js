@@ -15,6 +15,10 @@ const toJSON = (data) => {
     delete result.__v;
     delete result.createdAt;
     delete result.updatedAt;
+    // delete result.id;
+    delete result.verificationCode;
+    delete result.phone;
+    delete result.phoneVerified;
     return result;
 };
 exports.toJSON = toJSON;
