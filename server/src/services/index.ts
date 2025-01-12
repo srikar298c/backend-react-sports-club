@@ -3,4 +3,6 @@ export {emailService} from './email.service'
 export { tokenService } from './token.service';
 export { authService } from './auth.service'
 export {groundServices} from './ground.service'
-export {bookingServices} from './booking.service'
+export { bookingServices } from './booking.service'
+export { reportServices } from './report.service'
+export {slotServices} from './slot.service'

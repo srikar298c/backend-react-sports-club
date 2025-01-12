@@ -16,7 +16,7 @@ export const userValidation = {
       name: z.string().min(1, "Name is required"),
       email: z.string().email("Invalid email address"),
       password: passwordSchema,
-  role: z.enum(['user', 'admin']).optional(),
+  role: z.enum(['user', 'admin','super admin']).optional(),
     }).refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided.',
   })
@@ -59,7 +59,7 @@ export const userValidation = {
         name: z.string().optional(),
         email: z.string().email("Invalid email address").optional(),
        password: passwordSchema.optional(),
-    role: z.enum(['user', 'admin']).optional(),
+    role: z.enum(['user', 'admin','super admin']).optional(),
     isEmailVerified: z.boolean().optional(),
       })
       .refine((data) => Object.keys(data).length > 0, {

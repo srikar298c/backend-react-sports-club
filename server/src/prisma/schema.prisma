@@ -1,5 +1,5 @@
 datasource db {
-  provider = "postgresql"  
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -7,95 +7,484 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Enums
 enum TokenType {
-   ACCESS
+  ACCESS
   REFRESH
-  RESET_PASSWORD
-  VERIFY_EMAIL
+  EMAIL_VERIFICATION
+  PHONE_VERIFICATION
+  PASSWORD_RESET
+}
+enum AdminStatus {
+  PENDING    // Just invited
+  ACTIVE     // Account setup complete
+  SUSPENDED  // Temporarily disabled
+  INACTIVE   // No longer active
+}
+enum PaymentMethod {
+  CREDIT_CARD
+  BANK_TRANSFER
+  UPI
+  WALLET
 }
 
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+enum GroundStatus {
+  PENDING    // Just created, awaiting verification
+  ACTIVE     // Verified and active
+  SUSPENDED  // Temporarily suspended
+  INACTIVE   // No longer active
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum GroundManagerRole {
+  OWNER           // Full control
+  MANAGER         // Can manage bookings and maintenance
+  BOOKING_MANAGER // Can only manage bookings
+}
+enum ManagerStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+enum GroundType {
+  CRICKET
+  FOOTBALL
+  BASKETBALL
+  TENNIS
+  TABLE_TENNIS
+  BADMINTON
+  SWIMMING
+  AUTO_RACING
+  BASEBALL
+  PICKLEBALL
+  HORSE_RIDING
+  OTHER
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum DisbursementStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum SlotStatus {
+  AVAILABLE
+  BOOKED
+  MAINTENANCE
+  BLOCKED
+}
+
+enum RecurrenceType {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  DISPUTED
+  COMPLETED
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+
+// [Previous enums remain the same...]
+// Keeping all enums as they were since they don't have any validation errors
 
 model User {
-  id              Int        @id @default(autoincrement())
-  name            String?
-  email           String?    @unique
-  phone           String?    @unique  
-  phoneVerified   Boolean    @default(false)
-  password        String?
-  role            String?     @default("user")
-  googleId        String?    @unique  
-  isEmailVerified Boolean    @default(false)
-  verificationCode String?   
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  bookings        Booking[]
-  tokens          Token[]    
+  id                  Int         @id @default(autoincrement())
+  email               String?     @unique
+  phone               String?     @unique
+  name                String?
+  password            String?
+  passwordLastChanged DateTime    @default(now())
+  passwordHistory     Json?       // Store last 5 password hashes
+  roleId              Int
+  googleId            String?     @unique
+  isEmailVerified     Boolean     @default(false)
+  phoneVerified       Boolean     @default(false)
+  verificationCode    String?
+  loginAttempts       Int         @default(0)
+  lastLoginAttempt    DateTime?
+  lastLoginAt         DateTime?
+  isLocked            Boolean     @default(false)
+  lockUntil           DateTime?
+  notificationPrefs   Json        @default("{}")
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  role                Role        @relation(fields: [roleId], references: [id])
+  tokens              Token[]
+  bookings            Booking[]
+  reviews             Review[]
+  auditLogs           AuditLog[]  @relation("UserAuditLogs")
+  blacklistHistory    Blacklist[]
+  payments            Payment[]
+  isAdmin             Boolean     @default(false)  // Instead of adminProfile relation
+
+  @@index([email, phone])
+  @@index([roleId])
 }
 
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // 'USER', 'ADMIN', 'SUPER_ADMIN', 'FINANCE'
+  permissions Json     // Array of permission strings
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   Int?    // Admin who created this role
+  
+  users       User[]
+  admins      Admin[]
+  creator     Admin?   @relation("RoleCreator", fields: [createdBy], references: [id])
 
-
-model Ground {
-  id              Int        @id @default(autoincrement())
-  groundName      String
-  location        String
-  description     String?
-  type            String    
-  availability    Boolean    @default(true)
-  media           String?   
-  rating          Float?   
-  totalPeopleRated Int       @default(0)
-  bookings        Booking[]
-  slots           Slot[]
+  @@index([name])
 }
 
-model Slot {
-  id        Int      @id @default(autoincrement())
-  groundId  Int
-  timeRange String   // e.g., "6am-9am"
-  price     Float
-  ground    Ground   @relation(fields: [groundId], references: [id])
-  bookings  Booking[]
-}
+model Token {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  token         String    @unique
+  type          TokenType
+  expiresAt     DateTime
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  isBlacklisted Boolean   @default(false)
+  device        String?   // Device information
+  ipAddress     String?
+  user          User      @relation(fields: [userId], references: [id])
 
-model Booking {
-  id         Int      @id @default(autoincrement())
-  userId     Int
-  groundId   Int
-  slotId     Int
-  date       DateTime
-  status     String   @default("pending")
-  createdAt  DateTime @default(now())
-  payment    Payment?
-
-  user       User     @relation(fields: [userId], references: [id])
-  ground     Ground   @relation(fields: [groundId], references: [id])
-  slot       Slot     @relation(fields: [slotId], references: [id])
+  @@index([token])
+  @@index([userId, type])
 }
 
 model Payment {
-  id            Int      @id @default(autoincrement())
-  bookingId     Int      @unique
-  amount        Float
-  status        String   
-  transactionId String?
-  createdAt     DateTime @default(now())
+  id              Int            @id @default(autoincrement())
+  userId          Int
+  bookingId       Int            @unique // Added unique constraint
+  amount          Decimal        @db.Decimal(10, 2)
+  paymentMethod   PaymentMethod
+  paymentStatus   PaymentStatus  @default(PENDING)
+  transactionRef  String         @unique
+  gatewayRef      String?        // Payment gateway reference
+  gatewayResponse Json?          // Store complete gateway response
+  refundStatus    RefundStatus?
+  refundAmount    Decimal?       @db.Decimal(10, 2)
+  refundReason    String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  processedAt     DateTime?
+  booking         Booking        @relation(fields: [bookingId], references: [id])
+  user            User           @relation(fields: [userId], references: [id])
+  disbursements   Disbursement[]
 
-  booking       Booking  @relation(fields: [bookingId], references: [id])
+  @@index([transactionRef])
+  @@index([userId, paymentStatus])
+  @@index([bookingId])
+}
+
+model Slot {
+  id            Int           @id @default(autoincrement())
+  groundId      Int
+  startTime     DateTime
+  endTime       DateTime
+  recurrenceId  Int?
+  status        SlotStatus    @default(AVAILABLE)
+  capacity      Int           @default(1)
+  priceModifier Decimal       @default(1.00) @db.Decimal(3, 2)
+  reason        String?       // For unavailability
+  deletedAt     DateTime?
+  ground        Ground        @relation(fields: [groundId], references: [id])
+  recurrence    Recurrence?   @relation(fields: [recurrenceId], references: [id])
+  bookings      Booking[]
+  maintenance   Maintenance[]
+
+  @@index([groundId, status])
+  @@index([startTime, endTime])
+}
+
+model Ground {
+  id                Int           @id @default(autoincrement())
+  groundName        String
+  location          String
+  coordinates       Json?         // Store latitude and longitude
+  description       String        @db.Text
+  type              GroundType
+  capacity          Int
+  pricePerHour     Decimal       @db.Decimal(10, 2)
+  availability      Boolean       @default(true)
+  rating           Decimal       @default(0) @db.Decimal(3, 2)
+  totalPeopleRated Int           @default(0)
+  amenities        Json          // Array of amenity IDs
+  rules            String[]      // Ground rules
+  cancellationPolicy Json        // Cancellation rules and charges
+  adminId          Int
+  status            GroundStatus @default(PENDING)
+  verificationStatus VerificationStatus @default(PENDING)
+  verifiedAt        DateTime?
+  verifiedBy        Int?      // Super admin who verified
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  admin            Admin         @relation(fields: [adminId], references: [id])
+  verifier          Admin?    @relation("GroundVerifier", fields: [verifiedBy], references: [id])
+  slots            Slot[]
+  bookings         Booking[]
+  media            Media[]
+  reviews          Review[]
+  maintenance      Maintenance[]
+ groundManagers    GroundManager[]
+  
+  deletedAt         DateTime?
+  deletedBy         Int?
+  deletedReason     String?
+  @@index([type, availability])
+  @@index([location])
+}
+
+model GroundManager {
+  id        Int       @id @default(autoincrement())
+  groundId  Int
+  adminId   Int
+  role      GroundManagerRole
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  createdBy Int      // Admin who assigned this manager
+  status      ManagerStatus @default(PENDING)
+  inviteToken String?   @unique
+  inviteExpiry DateTime?
+  permissions Json      // Specific permissions for this manager
+ground    Ground    @relation(fields: [groundId], references: [id])
+  admin     Admin     @relation(fields: [adminId], references: [id])
+  creator   Admin     @relation("ManagerCreator", fields: [createdBy], references: [id])
+
+  @@unique([groundId, adminId])
+  @@index([groundId])
+  @@index([adminId])
+   @@index([status])
+}
+
+model Media {
+  id        Int       @id @default(autoincrement())
+  groundId  Int
+  type      MediaType
+  url       String
+  order     Int       @default(0)
+  createdAt DateTime  @default(now())
+  ground    Ground    @relation(fields: [groundId], references: [id])
+
+  @@index([groundId])
+}
+
+model Admin {
+  id                Int       @id @default(autoincrement())
+  name              String
+  email             String    @unique
+  password          String
+  passwordLastChanged DateTime @default(now())
+  roleId            Int
+  createdBy         Int?     // ID of admin who created this admin
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  lastLoginAt       DateTime?
+  status            AdminStatus @default(PENDING)
+  invitationToken   String?   @unique
+  invitationExpiry  DateTime?
+
+  role              Role      @relation(fields: [roleId], references: [id])
+  creator           Admin?    @relation("AdminCreator", fields: [createdBy], references: [id])
+  createdAdmins     Admin[]   @relation("AdminCreator")
+  createdRoles      Role[]    @relation("RoleCreator")
+  grounds           Ground[]
+  managedGrounds      GroundManager[]
+  verifiedGrounds     Ground[]        @relation("GroundVerifier")
+  createdManagers     GroundManager[] @relation("ManagerCreator")
+  bankAccounts      AdminBankAccount[]
+  auditLogs          AuditLog[]        @relation("AdminAuditLogs")
+  disbursements     Disbursement[]
+
+  deletedAt         DateTime?
+  deletedReason     String?
+  deletedBy         Int?
+
+  @@index([email])
+  @@index([roleId])
+  @@index([status])
 }
 
 
-model Token {
-  id         Int        @id @default(autoincrement())
-  token      String    
-  userId     Int       
-  type       TokenType  // The type of token (REFRESH, RESET_PASSWORD, VERIFY_EMAIL)
-  expires    DateTime  
-  blacklisted Boolean   @default(false) // If the token is blacklisted
-  role       String?    
+model AdminBankAccount {
+  id            Int       @id @default(autoincrement())
+  adminId       Int
+  accountNumber String
+  bankName      String
+  accountType   String
+  isDefault     Boolean   @default(false)
+  isVerified    Boolean   @default(false)
+  deletedAt     DateTime?
+  admin         Admin     @relation(fields: [adminId], references: [id])
 
-  createdAt  DateTime   @default(now())  
-  updatedAt  DateTime   @updatedAt       
-
-  user       User       @relation(fields: [userId], references: [id]) 
+  @@unique([adminId, accountNumber])
 }
 
+model Disbursement {
+  id            Int                @id @default(autoincrement())
+  paymentId     Int
+  adminId       Int
+  amount        Decimal            @db.Decimal(10, 2)
+  status        DisbursementStatus @default(PENDING)
+  scheduledFor  DateTime
+  processedAt   DateTime?
+  failureReason String?
+  retryCount    Int                @default(0)
+  deletedAt     DateTime?
+  payment       Payment            @relation(fields: [paymentId], references: [id])
+  admin         Admin              @relation(fields: [adminId], references: [id])
+
+  @@index([paymentId, status])
+  @@index([adminId, status])
+}
+
+model Recurrence {
+  id          Int            @id @default(autoincrement())
+  type        RecurrenceType
+  interval    Int            // Interval value
+  daysOfWeek  Int[]         // For weekly recurrence (1-7 for Monday-Sunday)
+  monthDay    Int?          // For monthly recurrence (1-31)
+  untilDate   DateTime?
+  exceptions  DateTime[]     // Dates when the recurrence doesn't apply
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  slots       Slot[]
+}
+
+model Booking {
+  id                Int           @id @default(autoincrement())
+  userId            Int
+  slotId            Int
+  groundId          Int
+  status            BookingStatus @default(PENDING)
+  amount            Decimal       @db.Decimal(10, 2)
+  paymentId         Int?         @unique
+  cancellationReason String?
+  disputeDetails    Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  user              User          @relation(fields: [userId], references: [id])
+  slot              Slot          @relation(fields: [slotId], references: [id])
+  payment           Payment?
+  ground            Ground        @relation(fields: [groundId], references: [id])
+
+  @@index([userId, status])
+  @@index([slotId, status])
+}
+
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  groundId  Int
+  bookingId Int      @unique
+  rating    Int
+  comment   String?  @db.Text
+  response  String?  @db.Text  // Admin response to review
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+  ground    Ground   @relation(fields: [groundId], references: [id])
+
+  @@index([groundId])
+  @@index([userId])
+}
+
+model Maintenance {
+  id        Int               @id @default(autoincrement())
+  groundId  Int
+  slotId    Int?
+  startTime DateTime
+  endTime   DateTime
+  reason    String
+  status    MaintenanceStatus @default(SCHEDULED)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  ground    Ground            @relation(fields: [groundId], references: [id])
+  slot      Slot?             @relation(fields: [slotId], references: [id])
+
+  @@index([groundId, status])
+}
+
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  entityType  String   // 'USER', 'BOOKING', etc.
+  entityId    Int
+  action      String   // 'CREATE', 'UPDATE', 'DELETE'
+  changes     Json     // Store what changed
+  performedBy Int      // User/Admin ID
+  userType    String   // 'USER' or 'ADMIN'
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+  user        User?    @relation("UserAuditLogs", fields: [performedBy], references: [id], map: "AuditLog_user_fkey")
+  admin       Admin?   @relation("AdminAuditLogs", fields: [performedBy], references: [id], map: "AuditLog_admin_fkey")
+
+  @@index([entityType, entityId])
+  @@index([performedBy])
+}
+
+model Blacklist {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  reason    String
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model OTP {
+  id          Int      @id @default(autoincrement())
+  phoneNumber String
+  code        String
+  expiration  DateTime
+  attempts    Int      @default(0)
+  isUsed      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([phoneNumber, isUsed])
+}

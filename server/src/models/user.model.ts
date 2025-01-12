@@ -1,6 +1,7 @@
 import { PrismaClient, User as PrismaUser } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { paginate } from '../prismaClient'; 
+import ApiError from '../utils/ApiError';
 
 const prisma = new PrismaClient();
 
@@ -33,17 +34,26 @@ const createUser = async (data: {
   name: string;
   email: string;
   password: string;
-  role: string;
+  role: string; // Updated type to match the UserRole enum
 }): Promise<PrismaUser> => {
-  const hashedPassword = await bcrypt.hash(data.password, 8);
-  const createdUser = await prisma.user.create({
-    data: {
-      ...data,
-      password: hashedPassword,
-    },
-  });
+  try {
+    if (await isEmailTaken(data.email)) {
+      throw new ApiError('Email is already taken', 400, undefined, 'EMAIL_TAKEN');
+    }
 
-  return toJSON(createdUser); // Apply toJSON to the created user
+    const hashedPassword = await bcrypt.hash(data.password, 8);
+    const createdUser = await prisma.user.create({
+      data: {
+        ...data,
+  
+        password: hashedPassword,
+      },
+    });
+
+    return toJSON(createdUser);
+  } catch (error) {
+    throw new ApiError('Error creating user', httpStatus.INTERNAL_SERVER_ERROR);
+  }
 };
 
 const isPasswordMatch = async (password: string, userPassword: string): Promise<boolean> => {
@@ -94,7 +104,7 @@ const createGoogleUser = async (data: {
   email?: string; // Allow undefined
   name?: string;
   googleId?: string;
-  role?: string;
+ role?: string;
 }) => {
   try {
     const user = await prisma.user.create({

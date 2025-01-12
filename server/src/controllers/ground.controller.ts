@@ -1,7 +1,9 @@
 import catchAsync from '../utils/catchAsync';
 import ApiError from '../utils/ApiError';
 import httpStatus from 'http-status';
-import { groundServices } from '../services/ground.service';
+import { groundServices, slotServices } from '../services';
+
+
 
 /**
  * Create a ground
@@ -21,24 +23,14 @@ const addSlotsToGround = catchAsync(async (req, res) => {
     throw new ApiError('Ground ID and slots are required', httpStatus.BAD_REQUEST);
   }
 
-  const result = await groundServices.addSlotsToGround(groundId, slots);
+  const result = await slotServices.addSlotsToGround(groundId, slots);
   res.status(httpStatus.CREATED).send(result);
 });
 
 /**
  * Get available slots for a ground
  */
-const getAvailableSlots = catchAsync(async (req, res) => {
-  const { groundId } = req.params;
-  const { date } = req.query;
 
-  if (!groundId || !date) {
-    throw new ApiError('Ground ID and date are required', httpStatus.BAD_REQUEST);
-  }
-
-  const availableSlots = await groundServices.getAvailableSlots(Number(groundId), date as string);
-  res.status(httpStatus.OK).send(availableSlots);
-});
 
 /**
  * Get all grounds
@@ -82,7 +74,6 @@ const deleteGround = catchAsync(async (req, res) => {
 export const groundController = {
   createGround,
   addSlotsToGround,
-  getAvailableSlots,
   getAllGrounds,
   updateGround,
   deleteGround,
