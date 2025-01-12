@@ -8,7 +8,7 @@ import { authService, userService, tokenService, emailService } from '../service
  */
 const register = catchAsync(async (req: Request, res: Response) => {
   const user = await userService.createUser(req.body); // Create a new user
-  const tokens = await tokenService.generateAuthTokens({ id: user.id,
+ const tokens = await tokenService.generateAuthTokens({ id: user.id,
   role: user.role || 'user',}); // Generate tokens
 
  

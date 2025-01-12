@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { ZodError } from "zod";
 
 export const validateRequest =
   (schema: any) =>
@@ -11,18 +12,19 @@ export const validateRequest =
         body: req.body,
       });
 
-      // Transform numericId to number if present in params
-      if (validated.params?.userId) {
-        validated.params.userId = parseInt(validated.params.userId, 10);
-      }
-
-      // Attach validated data to request
-      req.params = validated.params || req.params;
-      req.query = validated.query || req.query;
-      req.body = validated.body || req.body;
+      // Attach validated data to a custom property
+      (req as any).validated = validated;
 
       next();
     } catch (error) {
-      next(error); // Pass validation errors to the error handler
+      if (error instanceof ZodError) {
+        res.status(400).json({
+          success: false,
+          message: "Validation error",
+          errors: error.errors, // Provide details about what failed
+        });
+      } else {
+        next(error); // Pass non-validation errors to the error handler
+      }
     }
   };

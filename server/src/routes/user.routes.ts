@@ -22,17 +22,17 @@ router
 router
   .route('/:userId')
   .get(
-    auth('getUsers'),
+    // auth('getUsers'),
     validateRequest(userValidation.getUser),
     userController.getUser
   )
   .patch(
-    auth('manageUsers'),
+    // auth('manageUsers'),
     validateRequest(userValidation.updateUser),
     userController.updateUser
   )
   .delete(
-    auth('manageUsers'),
+    // auth('manageUsers'),
     validateRequest(userValidation.deleteUser),
     userController.deleteUser
   );

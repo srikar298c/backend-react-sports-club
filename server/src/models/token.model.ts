@@ -40,7 +40,7 @@ const createToken = async ({
         type,
         expires,
         blacklisted,
-        role,
+        role
       },
     });
 

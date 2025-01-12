@@ -1,106 +1,91 @@
-import { PrismaClient } from '@prisma/client';
 
+import { GroundData, UpdateGroundData } from "../types";
+import ApiError from "../utils/ApiError";
+
+// Import necessary dependencies
+const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 
-// type CreateGroundInput = {
-//   groundName: string;
-//   location: string;
-//   description?: string;
-//   type: string;
-//   media?: string;
-//   availability?: boolean;
-//   rating?: number;
-//   totalPeopleRated?: number;
-// };
 /**
- * Create a ground
+ * Create a new ground.
+ * @param groundData - Data for the new ground
+ * @returns The created ground
  */
-const createGround = async (data: {
-  groundName: string;
-  location: string;
-  description?: string;
-  type: string;
-  media?: string;
-}) => {
-  return await prisma.ground.create({
-    data,
-  });
-};
-/**
- * Add slots to a ground
- */
-const addSlotsToGround = async (groundId: number, slots: { timeRange: string; price: number }[]) => {
-  const slotData = slots.map(slot => ({ ...slot, groundId }));
-  return await prisma.slot.createMany({
-    data: slotData,
-  });
-};
+ async function createGround(groundData: GroundData) {
+  try {
+    const ground = await prisma.ground.create({
+      data: {
+        groundName: groundData.groundName,
+        location: groundData.location,
+        description: groundData.description,
+        type: groundData.type,
+        media: groundData.media || [],
+        availability:groundData.availability
+      },
+    });
+    return ground;
+  } catch (error) {
+    console.log(error)
+    throw new ApiError('Failed to create ground', httpStatus.NOT_ACCEPTABLE);
+  }
+}
 
 /**
- * Get available slots for a ground on a specific date
+ * Update ground details.
+ * @param groundId - ID of the ground to update
+ * @param updates - Partial data to update the ground
+ * @returns The updated ground
  */
-const getAvailableSlots = async (groundId: number, date: string) => {
-  const bookings = await prisma.booking.findMany({
-    where: { groundId, date: new Date(date) },
-    select: { slotId: true },
-  });
-
-  const bookedSlotIds = bookings.map(booking => booking.slotId);
-
-  return await prisma.slot.findMany({
-    where: {
-      groundId,
-      id: { notIn: bookedSlotIds },
-    },
-  });
-};
+ async function updateGround(groundId: number, updates: UpdateGroundData) {
+  try {
+    const updatedGround = await prisma.ground.update({
+      where: { id: groundId },
+      data: updates,
+    });
+    return updatedGround;
+  } catch (error) {
+    throw new ApiError('Failed to update ground details', 400);
+  }
+}
 
 /**
- * Book a slot
+ * Delete a ground by ID.
+ * @param groundId - ID of the ground to delete
+ * @returns The deleted ground
  */
+ async function deleteGround(groundId: number) {
+  try {
+    const deletedGround = await prisma.ground.delete({
+      where: { id: groundId },
+    });
+    return deletedGround;
+  } catch (error) {
+    throw new ApiError('Failed to delete ground', 400);
+  }
+}
 
 /**
- * Get all grounds
+ * Get all grounds with details.
+ * @returns List of all grounds with their slots and bookings
  */
-const getAllGrounds = async () => {
-  return await prisma.ground.findMany({
-    include: {
-      slots: true,
-      bookings: true,
-    },
-  });
-};
-
-/**
- * Update a ground
- */
-const updateGround = async (groundId: number, data: Partial<{
-  groundName: string;
-  location: string;
-  description: string;
-  type: string;
-  media: string;
-}>) => {
-  return await prisma.ground.update({
-    where: { id: groundId },
-    data,
-  });
-};
-
-
-const deleteGround = async (groundId: number) => {
-  return await prisma.ground.delete({
-    where: { id: groundId },
-  });
-};
+ async function getAllGrounds() {
+  try {
+    const grounds = await prisma.ground.findMany({
+      include: {
+        slots: true,
+        bookings: true,
+      },
+    });
+    return grounds;
+  } catch (error) {
+    throw new ApiError('Failed to fetch all grounds', 404);
+  }
+}
 
 export const groundServices = {
   createGround,
-  addSlotsToGround,
-  getAvailableSlots,
-    deleteGround,
-    getAllGrounds,
-  updateGround
-
-};
+  updateGround,
+  deleteGround,
+  getAllGrounds
+}

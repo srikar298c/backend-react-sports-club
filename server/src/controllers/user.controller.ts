@@ -40,10 +40,9 @@ const createUser = catchAsync(async (req: Request, res: Response) => {
   res.status(httpStatus.CREATED).send({
     message: 'User created successfully',
     user: {
-      id: user.id,
       email: user.email,
       name: user.name,
-      role:user.role,// Include any other non-sensitive user data
+      role:user.role,
     },
   });
 });

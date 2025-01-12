@@ -68,8 +68,7 @@ const refreshAuth = async (refreshToken: string) => {
     }
 
     // Generate new authentication tokens
-    return tokenService.generateAuthTokens({ id: user.id,
-  role: user.role || 'user',});
+    return tokenService.generateAuthTokens({ id: user.id});
   } catch (error) {
     throw new ApiError('Invalid refresh token', httpStatus.UNAUTHORIZED);
   }
