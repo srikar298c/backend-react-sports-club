@@ -12,7 +12,7 @@ class ApiError extends Error {
      * @param {Error | undefined} cause - Underlying error (optional)
      * @param {string | undefined} errorCode - Optional error code for categorization
      */
-    constructor(message, statusCode = 500, cause, errorCode) {
+    constructor(message, statusCode, cause, errorCode) {
         super(message);
         this.statusCode = statusCode;
         this.isOperational = true; // Distinguishes operational vs. programming errors
