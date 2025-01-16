@@ -93,6 +93,19 @@ If you did not request a password reset, please ignore this email.`;
   await sendEmail(to, subject, text);
 };
 
+const sendAdminInvitation = async (to: string, token: string):
+  Promise<void> => {
+  const subject = 'You are invited to become an Admin';
+  const adminInvitationUrl = `${config.appUrl}/register_admin?token=${token}`
+  const text = `
+<p>Hello,</p>
+    <p>You have been invited to become an Admin on [Platform Name].</p>
+    <p>Click the link below to complete your registration:</p>
+    <a href="${adminInvitationUrl}">${adminInvitationUrl}</a>
+    <p>This link will expire in 48 hours.</p>
+  `
+  await sendEmail(to,subject,text)
+  }
 /**
  * Send verification email
  * @param to - Recipient email address
