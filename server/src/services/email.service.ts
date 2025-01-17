@@ -124,6 +124,7 @@ If you did not create an account, please ignore this email.`;
 
 export const emailService = {
   transport,
+  sendAdminInvitation,
   verifyEmailServer,
   sendEmail,
   sendResetPasswordEmail,

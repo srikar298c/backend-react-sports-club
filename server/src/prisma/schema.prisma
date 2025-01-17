@@ -15,17 +15,24 @@ enum TokenType {
   EMAIL_VERIFICATION
   PHONE_VERIFICATION
   PASSWORD_RESET
-    ADMIN_INVITATION
-    GROUND_MANAGER_INVITATION
-    BOOKING_MANAGER_INVIATION
+  ADMIN_INVITATION
+  GROUND_MANAGER_INVITATION
+  BOOKING_MANAGER_INVIATION
 
 }
 enum AdminStatus {
-  PENDING    // Just invited
-  ACTIVE     // Account setup complete
-  SUSPENDED  // Temporarily disabled
-  INACTIVE   // No longer active
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+  PENDING
+  BLOCKED
 }
+
+enum RoleStatus {
+    ACTIVE
+    DEACTIVATED
+}
+
 enum PaymentMethod {
   CREDIT_CARD
   BANK_TRANSFER
@@ -132,14 +139,14 @@ enum MaintenanceStatus {
 // Keeping all enums as they were since they don't have any validation errors
 
 model User {
-  id                  Int         @id @default(autoincrement())
+  id                  String       @id @default(uuid())
   email               String?     @unique
   phone               String?     @unique
   name                String?
   password            String?
   passwordLastChanged DateTime    @default(now())
   passwordHistory     Json?       // Store last 5 password hashes
-  roleId              Int
+  roleId              String
   googleId            String?     @unique
   isEmailVerified     Boolean     @default(false)
   phoneVerified       Boolean     @default(false)
@@ -164,25 +171,40 @@ model User {
   @@index([email, phone])
   @@index([roleId])
 }
-
+enum RoleType {
+  SUPER_ADMIN
+  ADMIN
+  FINANCE_ADMIN
+  GROUND_ADMIN
+  GROUND_MANAGER
+  USER
+}
 model Role {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique // 'USER', 'ADMIN', 'SUPER_ADMIN', 'FINANCE'
+ id            String     @id @default(uuid())
+  name        String   @unique // 'USER', ' PRIMARY_ADMIN', 'ASSISTANT_MANAGER'SUPER_ADMIN' , 'FINANCE'
+   type              RoleType  // Base role type
   permissions Json     // Array of permission strings
+   description       String
+  isCustom          Boolean   @default(false)  // Whether this is a custom role
+  parentRoleId      String?      // For custom roles, references the base role they extend
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   createdBy   Int?    // Admin who created this role
+   status            RoleStatus @default(ACTIVE)
   
+  parentRole    Role?      @relation("RoleHierarchy", fields: [parentRoleId], references: [id])
+  childRoles        Role[]    @relation("RoleHierarchy")
   users       User[]
   admins      Admin[]
+  tokens      Token[]
   creator     Admin?   @relation("RoleCreator", fields: [createdBy], references: [id])
 
   @@index([name])
 }
 
 model Token {
-  id            Int       @id @default(autoincrement())
-  userId        Int
+ id            String     @id @default(uuid())
+  userId        String     @default(uuid())
   token         String    @unique
   type          TokenType
   expiresAt     DateTime
@@ -191,15 +213,18 @@ model Token {
   isBlacklisted Boolean   @default(false)
   device        String?   // Device information
   ipAddress     String?
+  roleId        String      // Add this field to reference the role directly
   user          User      @relation(fields: [userId], references: [id])
-
+  role          Role      @relation(fields: [roleId], references: [id]) // Add this relation
+  
   @@index([token])
   @@index([userId, type])
+  @@index([roleId])
 }
 
 model Payment {
-  id              Int            @id @default(autoincrement())
-  userId          Int
+  id            String     @id @default(uuid())
+  userId          String       @default(uuid())
   bookingId       Int            @unique // Added unique constraint
   amount          Decimal        @db.Decimal(10, 2)
   paymentMethod   PaymentMethod
@@ -223,8 +248,8 @@ model Payment {
 }
 
 model Slot {
-  id            Int           @id @default(autoincrement())
-  groundId      Int
+   id            String     @id @default(uuid())
+  groundId      String         @default(uuid())
   startTime     DateTime
   endTime       DateTime
   recurrenceId  Int?
@@ -243,7 +268,7 @@ model Slot {
 }
 
 model Ground {
-  id                Int           @id @default(autoincrement())
+ id            String     @id @default(uuid())
   groundName        String
   location          String
   coordinates       Json?         // Store latitude and longitude
@@ -282,9 +307,9 @@ model Ground {
 }
 
 model GroundManager {
-  id        Int       @id @default(autoincrement())
-  groundId  Int
-  adminId   Int
+  id            String     @id @default(uuid())
+  groundId  String          @default(uuid())
+  adminId   String          @default(uuid())
   role      GroundManagerRole
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -316,7 +341,7 @@ model Media {
 }
 
 model Admin {
-  id                Int       @id @default(autoincrement())
+  id                String       @id @default(uuid())
   name              String
   email             String    @unique
   password          String

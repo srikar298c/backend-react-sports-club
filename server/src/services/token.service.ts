@@ -19,17 +19,18 @@ interface TokenPayload {
 interface AuthTokens {
   access: {
     token: string;
-    expires: Date;
+    expiresAt: Date;
   };
   refresh: {
     token: string;
-    expires: Date;
+    expiresAt: Date;
   };
 }
 
+
 const generateToken = (
   userId: string,
-  expires: Moment,
+  expiresAt: Moment,
   type: TokenTypes,
    role?: string,
   secret: string = config.jwt.secret
@@ -37,7 +38,7 @@ const generateToken = (
   const payload: TokenPayload = {
     sub: userId,
     iat: moment().unix(),
-    exp: expires.unix(),
+    exp: expiresAt.unix(),
     type,
     role,
   };
@@ -47,17 +48,17 @@ const generateToken = (
 const saveToken = async (
   token: string,
   userId: string,
-  expires: Moment,
+  expiresAt: Moment,
   type: TokenTypes,
     role?: string,
-  blacklisted: boolean = false
+  isBlacklisted: boolean = false
 ): Promise<Token> => {
   return await TokenModel.createToken({
     userId: Number(userId),
     token,
     type,
-    expires: expires.toDate(),
-    blacklisted,
+    expiresAt: expiresAt.toDate(),
+    isBlacklisted,
     role,
   });
 };
@@ -75,7 +76,7 @@ const verifyToken = async (
       requiredRole
     );
 
-    if (!tokenDoc || tokenDoc.blacklisted) {
+    if (!tokenDoc || tokenDoc.isBlacklisted) {
       throw new ApiError('Invalid or expired token', httpStatus.UNAUTHORIZED);
     }
      // Verify role if required
@@ -126,11 +127,11 @@ const generateAuthTokens = async (user: { id: string | number;
   return {
     access: {
       token: accessToken,
-      expires: accessTokenExpires.toDate(),
+      expiresAt: accessTokenExpires.toDate(),
     },
     refresh: {
       token: refreshToken,
-      expires: refreshTokenExpires.toDate(),
+      expiresAt: refreshTokenExpires.toDate(),
     },
   };
 };
@@ -141,19 +142,19 @@ const generateResetPasswordToken = async (email: string): Promise<string> => {
     throw new ApiError('No user found with this email', httpStatus.NOT_FOUND);
   }
   const role = user.role ?? 'user';
-  const expires = moment().add(config.jwt.resetPasswordExpirationMinutes, 'minutes');
+  const expiresAt = moment().add(config.jwt.resetPasswordExpirationMinutes, 'minutes');
   const resetPasswordToken = generateToken(
     String(user.id),
-    expires,
-    TokenTypes.RESET_PASSWORD,
+    expiresAt,
+    TokenTypes.PASSWORD_RESET,
     role
   );
 
   await saveToken(
     resetPasswordToken,
     String(user.id),
-    expires,
-    TokenTypes.RESET_PASSWORD,
+    expiresAt,
+    TokenTypes.PASSWORD_RESET,
     role
   );
 
@@ -162,19 +163,19 @@ const generateResetPasswordToken = async (email: string): Promise<string> => {
 
 const generateVerifyEmailToken = async (user: { id: string,
   role?: string; }): Promise<string> => {
-  const expires = moment().add(config.jwt.verifyEmailExpirationMinutes, 'minutes');
+  const expiresAt = moment().add(config.jwt.verifyEmailExpirationMinutes, 'minutes');
   const verifyEmailToken = generateToken(
     user.id,
-    expires,
-    TokenTypes.VERIFY_EMAIL,
+    expiresAt,
+    TokenTypes.EMAIL_VERIFICATION,
     user.role
   );
 
   await saveToken(
     verifyEmailToken,
     user.id,
-    expires,
-    TokenTypes.VERIFY_EMAIL
+    expiresAt,
+    TokenTypes.EMAIL_VERIFICATION
   );
 
   return verifyEmailToken;
@@ -187,7 +188,7 @@ const generateJwtToken = (user: any) => {
   };
 
   return jwt.sign(payload, config.jwt.secret, {
-    expiresIn: config.jwt.accessExpirationMinutes * 60, // Expiry time for the access token
+    expiresAtIn: config.jwt.accessExpirationMinutes * 60, // Expiry time for the access token
   });
 };
 

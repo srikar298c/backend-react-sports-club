@@ -19,8 +19,8 @@ interface TokenCreateInput {
   userId: number;
   token: string;
   type: TokenTypes;
-  expires: Date;
-  blacklisted?: boolean;
+  expiresAt: Date;
+ isBlacklisted?: boolean;
   role?: string;
 }
 
@@ -28,8 +28,8 @@ const createToken = async ({
   userId,
   token,
   type,
-  expires,
-  blacklisted = false,
+  expiresAt,
+isBlacklisted = false,
   role
 }: TokenCreateInput): Promise<Token> => {
   try {
@@ -38,8 +38,8 @@ const createToken = async ({
         userId,
         token,
         type,
-        expires,
-        blacklisted,
+        expiresAt,
+     isBlacklisted,
         role
       },
     });
@@ -63,7 +63,7 @@ const getTokenByUserAndType = async (
       where: {
         userId,
         type,
-        blacklisted: false,
+        isBlacklisted: false,
         ...(requiredRole && {
           role: requiredRole
         })
@@ -84,7 +84,7 @@ const getTokensByUser = async (userId: number): Promise<Token[]> => {
     const tokens = await prisma.token.findMany({
       where: {
         userId,
-        blacklisted: false,
+        isBlacklisted: false,
       },
     });
 
@@ -99,12 +99,12 @@ const getTokensByUser = async (userId: number): Promise<Token[]> => {
 
 const blacklistToken = async (tokenId: number): Promise<Token> => {
   try {
-    const blacklistedToken = await prisma.token.update({
+    const isBlacklistedToken = await prisma.token.update({
       where: { id: tokenId },
-      data: { blacklisted: true },
+      data: { isBlacklisted: true },
     });
 
-    return toJSON(blacklistedToken);
+    return toJSON(isBlacklistedToken);
   } catch (error: unknown) {
     if (error instanceof Error) {
       throw new Error(`Error blacklisting token: ${error.message}`);
@@ -145,7 +145,7 @@ const getTokenById = async (tokenId: number): Promise<Token | null> => {
 
 interface TokenUpdateInput {
   role?: string;
-  blacklisted?: boolean;
+  isBlacklisted?: boolean;
   expires?: Date;
 }
 
