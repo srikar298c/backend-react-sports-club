@@ -1,0 +1,136 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+
+model User {
+  id         String     @id @default(uuid())
+  email      String?    @unique
+  phone      String?    @unique
+  name       String?
+  password   String?
+  roleId     String
+  role       Role       @relation(fields: [roleId], references: [id])
+  tokens     Token[]
+  deletedAt  DateTime?  // Soft deletion
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+enum TokenType {
+  ACCESS
+  REFRESH
+  EMAIL_VERIFICATION
+  PHONE_VERIFICATION
+  PASSWORD_RESET
+  RSC_FINANCE_ADMIN_INVITATION
+  RSC_GROUND_ADMIN_INVITATION
+  RSC_REGIONAL_GROUND_ADMIN_INVITATION
+  RSC_BOOKING_ADMIN_INVITATION
+  RSC_CUSTOMER_CARE_INVITATION
+  PRIMARY_GROUND_NAME_ADMIN_INVITATION
+  SENIOR_GROUND_NAME_MANAGER_INVITATION
+  JUNIOR_GROUND_NAME_MANAGER_INVITATION
+  GROUNDNAME_BOOKING_MANAGER_INVITATION
+  USER_INVITATION
+}
+
+model Token {
+ id            String     @id @default(uuid())
+  userId        String     @default(uuid())
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId        String      // Add this field to reference the role directly
+role          Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  token         String    @unique
+  type          TokenType
+  expiresAt     DateTime
+   deletedAt  DateTime?  // Soft deletion
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+
+  
+  @@index([token])
+  @@index([userId, type])
+  @@index([roleId])
+}
+
+enum RoleType {
+  RSC_SUPER_ADMIN
+  RSC_ADMIN
+  RSC_FINANCE_ADMIN
+  RSC_GROUND_ADMIN
+  RSC_REGIONAL_GROUND_ADMIN
+  RSC_BOOKING_ADMIN
+  RSC_CUSTOMER_CARE
+  PRIMARY_GROUND_NAME_ADMIN
+  SENIOR_GROUND_NAME_MANAGER
+  JUNIOR_GROUND_NAME_MANAGER
+  GROUNDNAME_BOOKING_MANAGER
+  USER
+}
+
+enum RoleStatus {
+  ACTIVE
+  DEACTIVATED
+}
+
+model Role {
+ id            String     @id @default(uuid())
+  name        String   @unique // 'USER', ' PRIMARY_ADMIN', 'ASSISTANT_MANAGER'SUPER_ADMIN' , 'FINANCE'
+   type              RoleType  // Base role type
+  
+  parentRoleId      String?      // For custom roles, references the base role they extend
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  createdBy   String?    // Admin who created this role
+   status            RoleStatus @default(ACTIVE)
+  deactivatedAt   DateTime?
+deactivationReason String?
+
+  parentRole    Role?      @relation("RoleHierarchy", fields: [parentRoleId], references: [id])
+  childRoles        Role[]    @relation("RoleHierarchy")
+  users       User[]
+  admins      Admin[]
+  tokens      Token[]
+  creator     Admin?   @relation("RoleCreator", fields: [createdBy], references: [id])
+
+  @@index([name])
+}
+enum AdminStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+  PENDING
+  BLOCKED
+}
+model Admin {
+  id                String       @id @default(uuid())
+  name              String?
+  email             String    @unique
+  phone      String?    @unique
+  password          String
+ roleId     String
+  role       Role       @relation(fields: [roleId], references: [id])
+  createdBy  String?
+  creator    Admin?     @relation("AdminCreator", fields: [createdBy], references: [id])
+  createdAdmins Admin[] @relation("AdminCreator")
+  createdRoles  Role[]  @relation("RoleCreator")
+  status     AdminStatus @default(PENDING)
+  invitationToken String? @unique
+  invitationExpiry DateTime?
+  deletedAt  DateTime?  // Soft deletion
+  deletedReason     String?
+  deletedBy         Int?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+
+  @@index([email])
+  @@index([roleId])
+  @@index([status])
+}
